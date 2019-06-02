@@ -6,10 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 
-// número de threads utilizadas para ordenação
-#define NUMERO_THREADS      4
 // capacidade inicial do vetor a ser ordenado
 #define CAPACIDADE_INICIAL  16
 
@@ -187,80 +184,8 @@ int main() {
         }
     }
 
-    // abrimos as N threads, executamos ordenação dividida igualmente e a
-    // aguardamos
-    {
-        pthread_t threads[NUMERO_THREADS];
-        trecho_t argumentos[NUMERO_THREADS];
-        int tamanho_batch = v.tamanho / NUMERO_THREADS;
-
-        for (int i = 0; i < NUMERO_THREADS; i++) {
-            trecho_t *args = &(argumentos[i]);
-
-            // iniciamos o vetor de argumentos
-            args->vetor = v.vetor;
-            // calculamos os índices de acesso do vetor
-            args->indice_inicial = i * tamanho_batch;
-            if (i == (NUMERO_THREADS - 1)) {
-                // se é o final, colocamos o resto
-                args->indice_final = v.tamanho - 1;
-            } else {
-                // se não é o final, dividimos por um número inteiro que é o
-                // tamanho do batch
-                args->indice_final = args->indice_inicial + tamanho_batch - 1;
-            }
-
-            // criamos a thread para ordenar se há itens suficiente
-            if ((args->indice_final - args->indice_inicial) > 0) {
-                // obs: passamos o endereço args e não o endereço de args pois
-                // args é uma variável local
-                pthread_create(
-                    &(threads[i]), NULL, quicksort_wrapper, args
-                );
-            }
-        }
-
-        int *vetor_acumulador = NULL;
-        int tamanho_acumulador = 0;
-
-        // aguardamos a ordenação acabar e fazemos o merge no vetor acumulador
-        for (int i = 0; i < NUMERO_THREADS; i++) {
-            trecho_t *args = &(argumentos[i]);
-            int tamanho = args->indice_final - args->indice_inicial + 1;
-
-            // se há itens suficiente, fazemos o merge
-            // obs: entre os índices, o vetor está ordenado
-            if (tamanho > 0) {
-                // aguardamos a thread acabar de ordenar
-                if (tamanho > 1) {
-                    pthread_join(threads[i], NULL);
-                }
-
-                // fazemos o merge no vetor acumulador
-                int *vetor_aux = vetor_acumulador;
-
-                vetor_acumulador = merge(
-                    vetor_aux, tamanho_acumulador,
-                    v.vetor + args->indice_inicial, tamanho
-                );
-
-                // liberamos o antigo vetor acumulador
-                if (vetor_aux != NULL) {
-                    free(vetor_aux);
-                }
-
-                // atualizamos o tamanho do vetor acumulador atual
-                tamanho_acumulador += tamanho;
-            }
-        }
-
-        // conferimos se está tudo certo
-        assert(tamanho_acumulador == v.tamanho);
-
-        // substituímos o vetor que temos que ordenar pelo vetor ordenado
-        free(v.vetor);
-        v.vetor = vetor_acumulador;
-    }
+    // ordenamos
+    quicksort(v.vetor, 0, v.tamanho - 1);
 
     // imprimimos vetor ordenado
     {
